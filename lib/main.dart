@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/adapters.dart';
 import 'package:textify/Logic/Routes.dart';
+import 'package:textify/Logic/message.dart';
 import 'package:textify/pages/ChatScreen.dart';
 import 'package:textify/pages/ForgotPassword.dart';
 import 'package:textify/pages/LoadingScreen.dart';
@@ -7,7 +10,12 @@ import 'package:textify/pages/LoginScreen.dart';
 import 'package:textify/pages/MainScreen.dart';
 import 'package:textify/pages/SignUp.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Hive
+  await Hive.initFlutter();
+  Hive.registerAdapter(MessageAdapter()); // Register your model adapter
   runApp(const MyApp());
 }
 

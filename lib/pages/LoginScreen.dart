@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:textify/Logic/AuthenticationService.dart';
 import 'package:textify/Logic/Routes.dart';
 
 class Loginscreen extends StatefulWidget {
@@ -9,6 +10,11 @@ class Loginscreen extends StatefulWidget {
 }
 
 class _LoginscreenState extends State<Loginscreen> {
+  AuthenticationService _authenticationService = AuthenticationService();
+  TextEditingController usernamecontroller = TextEditingController();
+  TextEditingController passwordcontroller = TextEditingController();
+  late String username;
+  late String password;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,6 +56,7 @@ class _LoginscreenState extends State<Loginscreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
+          controller: usernamecontroller,
           decoration: InputDecoration(
             hintText: "Username",
             border: OutlineInputBorder(
@@ -63,6 +70,7 @@ class _LoginscreenState extends State<Loginscreen> {
         ),
         SizedBox(height: 10),
         TextField(
+          controller: passwordcontroller,
           decoration: InputDecoration(
             hintText: "Password",
             border: OutlineInputBorder(
@@ -77,8 +85,12 @@ class _LoginscreenState extends State<Loginscreen> {
         ),
         SizedBox(height: 10),
         ElevatedButton(
-          onPressed: () {
-            Navigator.pushNamed(context, Routes.Mainpage);
+          onPressed: () async {
+            username = usernamecontroller.text;
+            password = passwordcontroller.text;
+            if (await _authenticationService.login(username, password)) {
+              Navigator.pushNamed(context, Routes.Mainpage);
+            }
           },
           child: Text("Login", style: TextStyle(fontSize: 20)),
           style: ElevatedButton.styleFrom(
@@ -106,7 +118,7 @@ class _LoginscreenState extends State<Loginscreen> {
         Text("Don't have an account? "),
         TextButton(
           onPressed: () {
-            Navigator.pushNamed(context, Routes.signup);
+            Navigator.pushNamed(context, Routes.login);
           },
           child: Text("Sign Up"),
         ),

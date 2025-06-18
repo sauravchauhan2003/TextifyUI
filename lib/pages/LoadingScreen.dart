@@ -13,26 +13,31 @@ class _LoadingScreenState extends State<LoadingScreen> {
   @override
   void initState() {
     super.initState();
-    _checkJwtAndNavigate();
+    _checkJwtAndUsername();
   }
 
-  Future<void> _checkJwtAndNavigate() async {
+  Future<void> _checkJwtAndUsername() async {
     final prefs = await SharedPreferences.getInstance();
     final jwt = prefs.getString('jwt_token');
+    final username = prefs.getString('username');
 
-    if (jwt != null && jwt.isNotEmpty) {
-      // Delay a bit to show the animation
-      await Future.delayed(const Duration(seconds: 2));
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(
-        context,
-        '/mainpage',
-      ); // use your actual route name
+    print('🟡 LoadingScreen: JWT Token from SharedPreferences: $jwt');
+    print('🟡 LoadingScreen: Username from SharedPreferences: $username');
+
+    // Delay to show the animation briefly
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    if (jwt != null &&
+        jwt.isNotEmpty &&
+        username != null &&
+        username.isNotEmpty) {
+      print("✅ JWT and Username found. Navigating to /mainpage");
+      Navigator.pushReplacementNamed(context, '/mainpage');
     } else {
-      // You can also navigate to login if JWT not found
-      await Future.delayed(const Duration(seconds: 2));
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/login'); // fallback
+      print("❌ Missing JWT or Username. Navigating to /login");
+      Navigator.pushReplacementNamed(context, '/login');
     }
   }
 
@@ -47,7 +52,6 @@ class _LoadingScreenState extends State<LoadingScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // App Name
               Text(
                 "Textify",
                 style: TextStyle(
@@ -63,8 +67,6 @@ class _LoadingScreenState extends State<LoadingScreen> {
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 30),
-
-              // Lottie Animation
               SizedBox(
                 height: 200,
                 width: 200,

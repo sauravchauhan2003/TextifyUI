@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:textify/Logic/Websocket.dart';
 import 'package:textify/Widgets/MessagePreview.dart';
 
 class RecentChatsPage extends StatefulWidget {
@@ -22,6 +23,7 @@ class _RecentChatsPageState extends State<RecentChatsPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    WebSocketService().startListening();
   }
 
   @override

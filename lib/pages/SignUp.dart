@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:textify/Logic/AuthenticationService.dart';
 import 'package:textify/Logic/Routes.dart';
 
 class Signup extends StatefulWidget {
@@ -9,6 +10,13 @@ class Signup extends StatefulWidget {
 }
 
 class _SigState extends State<Signup> {
+  var _authservice = AuthenticationService();
+  late String username;
+  late String password;
+  late String email;
+  TextEditingController usernamecontroller = TextEditingController();
+  TextEditingController passwordcontroller = TextEditingController();
+  TextEditingController emailcontroller = TextEditingController();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,6 +45,7 @@ class _SigState extends State<Signup> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     TextField(
+                      controller: emailcontroller,
                       decoration: InputDecoration(
                         hintText: "Email",
                         border: OutlineInputBorder(
@@ -52,6 +61,7 @@ class _SigState extends State<Signup> {
                     ),
                     SizedBox(height: 10),
                     TextField(
+                      controller: usernamecontroller,
                       decoration: InputDecoration(
                         hintText: "Username",
                         border: OutlineInputBorder(
@@ -67,6 +77,7 @@ class _SigState extends State<Signup> {
                     ),
                     SizedBox(height: 10),
                     TextField(
+                      controller: passwordcontroller,
                       decoration: InputDecoration(
                         hintText: "Password",
                         border: OutlineInputBorder(
@@ -85,8 +96,17 @@ class _SigState extends State<Signup> {
                     ),
                     SizedBox(height: 10),
                     ElevatedButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, Routes.Mainpage);
+                      onPressed: () async {
+                        username = usernamecontroller.text;
+                        password = passwordcontroller.text;
+                        email = emailcontroller.text;
+                        if (await _authservice.register(
+                          username,
+                          password,
+                          email,
+                        )) {
+                          Navigator.pushNamed(context, Routes.Mainpage);
+                        }
                       },
                       child: Text("Sign Up", style: TextStyle(fontSize: 20)),
                       style: ElevatedButton.styleFrom(

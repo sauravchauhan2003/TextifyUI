@@ -1,44 +1,68 @@
 import 'package:http/http.dart' as http;
 import 'package:textify/Logic/Constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthenticationService {
-  Future<String?> login(String username, String password) async {
+  Future<bool> login(String username, String password) async {
     final url = Uri.parse('$BASE_URL/login');
-    final response = await http.get(
+    print("🔵 Attempting login for: $username");
+
+    final response = await http.post(
       url,
       headers: {'username': username, 'password': password},
     );
 
+    print("🔵 Login response status: ${response.statusCode}");
+    print("🔵 Login response body: ${response.body}");
+
     if (response.statusCode == 200) {
-      return response.body; // JWT token or success message
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('jwt_token', response.body);
+      await prefs.setString('username', username);
+
+      print("✅ Login successful. JWT: ${response.body}");
+      print("✅ Stored username: $username");
+
+      return true;
     } else {
-      print('Login failed: ${response.statusCode}');
-      return null;
+      print('❌ Login failed: ${response.statusCode}');
+      return false;
     }
   }
 
-  Future<String?> register(
-    String username,
-    String password,
-    String email,
-  ) async {
+  Future<bool> register(String username, String password, String email) async {
     final url = Uri.parse('$BASE_URL/register');
-    final response = await http.get(
+    print("🔵 Attempting registration for: $username");
+
+    final response = await http.post(
       url,
       headers: {'username': username, 'password': password, 'email': email},
     );
 
+    print("🔵 Registration response status: ${response.statusCode}");
+    print("🔵 Registration response body: ${response.body}");
+
     if (response.statusCode == 200) {
-      return response.body;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('jwt_token', response.body);
+      await prefs.setString('username', username);
+
+      print("✅ Registration successful. JWT: ${response.body}");
+      print("✅ Stored username: $username");
+
+      return true;
     } else {
-      print('Registration failed: ${response.statusCode}');
-      return null;
+      print('❌ Registration failed: ${response.statusCode}');
+      return false;
     }
   }
 
   Future<bool> verifyToken(String token) async {
     final url = Uri.parse('$BASE_URL/verify');
-    final response = await http.get(url, headers: {'Authorization': token});
+    final response = await http.post(url, headers: {'Authorization': token});
+
+    print("🔍 Verifying token: $token");
+    print("🔍 Verification status code: ${response.statusCode}");
 
     return response.statusCode == 200;
   }
