@@ -190,6 +190,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.8"
+  dart_webrtc:
+    dependency: transitive
+    description:
+      name: dart_webrtc
+      sha256: "5b76fd85ac95d6f5dee3e7d7de8d4b51bfbec1dc73804647c6aebb52d6297116"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.3+hotfix.2"
   fake_async:
     dependency: transitive
     description:
@@ -245,6 +253,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_webrtc:
+    dependency: "direct main"
+    description:
+      name: flutter_webrtc
+      sha256: dd47ca103b5b6217771e6277882674276d9621bbf9eb23da3c03898b507844e3
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.14.1"
   frontend_server_client:
     dependency: transitive
     description:
@@ -674,6 +690,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  synchronized:
+    dependency: transitive
+    description:
+      name: synchronized
+      sha256: "0669c70faae6270521ee4f05bffd2919892d42d1276e6c495be80174b6bc0ef6"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.3.1"
   term_glyph:
     dependency: transitive
     description:
@@ -738,22 +762,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
-  web_socket:
-    dependency: transitive
-    description:
-      name: web_socket
-      sha256: "34d64019aa8e36bf9842ac014bb5d2f5586ca73df5e4d9bf5c936975cae6982c"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.1"
   web_socket_channel:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: web_socket_channel
-      sha256: d645757fb0f4773d602444000a8131ff5d48c9e47adfe9772652dd1a4f2d45c8
+      sha256: d88238e5eac9a42bb43ca4e721edba3c08c6354d4a53063afaa568516217621b
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.3"
+    version: "2.4.0"
+  webrtc_interface:
+    dependency: transitive
+    description:
+      name: webrtc_interface
+      sha256: "86fe3afc81a08481dfb25cf14a5a94e27062ecef25544783f352c914e0bbc1ca"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.2+hotfix.2"
   xdg_directories:
     dependency: transitive
     description:

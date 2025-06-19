@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:textify/Logic/Webrtc.dart';
 import 'package:textify/Logic/Websocket.dart';
 import 'package:textify/Widgets/MessagePreview.dart';
+import 'package:hive/hive.dart';
+import 'package:textify/Logic/message.dart';
 
 class RecentChatsPage extends StatefulWidget {
   const RecentChatsPage({super.key});
@@ -12,6 +16,9 @@ class RecentChatsPage extends StatefulWidget {
 class _RecentChatsPageState extends State<RecentChatsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  List<Message> allMessages = [];
+  Map<String, Message> latestMessages = {};
+  Map<String, int> unreadCounts = {};
 
   final List<Tab> _tabs = const [
     Tab(text: "All chats"),
@@ -24,6 +31,36 @@ class _RecentChatsPageState extends State<RecentChatsPage>
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
     WebSocketService().startListening();
+    WebRtcManager().connectToSignalingServer();
+
+    Hive.openBox<Message>('messages').then((box) {
+      box.watch().listen((event) {
+        loadMessages();
+      });
+      loadMessages();
+    });
+  }
+
+  Future<void> loadMessages() async {
+    final box = await Hive.openBox<Message>('messages');
+    final all = box.values.toList();
+    all.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    final Map<String, Message> latest = {};
+    final Map<String, int> tempUnread = {};
+
+    for (var msg in all) {
+      if (!latest.containsKey(msg.sender)) {
+        latest[msg.sender] = msg;
+      }
+      tempUnread[msg.sender] = (tempUnread[msg.sender] ?? 0) + 1;
+    }
+
+    setState(() {
+      allMessages = all;
+      latestMessages = latest;
+      unreadCounts = tempUnread;
+    });
   }
 
   @override
@@ -62,11 +99,7 @@ class _RecentChatsPageState extends State<RecentChatsPage>
       backgroundColor: Colors.white,
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildChatList(), // All Chats
-          _buildChatList(), // Personal
-          _buildChatList(), // Work
-        ],
+        children: [_buildChatList(), _buildChatList(), _buildChatList()],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
@@ -86,27 +119,20 @@ class _RecentChatsPageState extends State<RecentChatsPage>
   }
 
   Widget _buildChatList() {
-    return ListView(
-      children: const [
-        MessagePreview(
-          name: "Darlene Steward",
-          message: "Pls take a look at the images.",
-        ),
-        MessagePreview(
-          name: "Fullsnack Designers",
-          message: "Hello guys, we have discussed about .....",
-          unreadCount: 5,
-        ),
-        MessagePreview(
-          name: "Lee Williamson",
-          message: "Yes, that’s gonna work, hopefully.",
-        ),
-        MessagePreview(name: "Ronald Mccoy", message: "Thanks dude 😌"),
-        MessagePreview(
-          name: "Albert Bell",
-          message: "I’m happy this anime has such grea...",
-        ),
-      ],
+    final sortedEntries =
+        latestMessages.entries.toList()
+          ..sort((a, b) => b.value.timestamp.compareTo(a.value.timestamp));
+
+    return ListView.builder(
+      itemCount: sortedEntries.length,
+      itemBuilder: (context, index) {
+        final entry = sortedEntries[index];
+        return MessagePreview(
+          name: entry.key,
+          message: entry.value.content,
+          unreadCount: unreadCounts[entry.key] ?? 0,
+        );
+      },
     );
   }
 }

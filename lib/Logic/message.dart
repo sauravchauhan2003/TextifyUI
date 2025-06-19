@@ -25,10 +25,11 @@ class Message extends HiveObject {
 
   factory Message.fromJson(Map<String, dynamic> json) {
     return Message(
-      sender: json['sender'],
-      receiver: json['receiver'],
-      content: json['content'],
-      timestamp: DateTime.parse(json['timestamp']),
+      sender: json['sender'] ?? 'unknown',
+      receiver: json['receiver'] ?? 'unknown',
+      content: json['message'] ?? '',
+      timestamp:
+          DateTime.tryParse(json['localDateTime'] ?? '') ?? DateTime.now(),
     );
   }
 
