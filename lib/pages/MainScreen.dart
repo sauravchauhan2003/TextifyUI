@@ -1,3 +1,4 @@
+// File: RecentChatsPage.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:textify/Logic/Webrtc.dart';
@@ -18,7 +19,7 @@ class _RecentChatsPageState extends State<RecentChatsPage>
   late TabController _tabController;
   List<Message> allMessages = [];
   Map<String, Message> latestMessages = {};
-  Map<String, int> unreadCounts = {};
+  String currentUser = "";
 
   final List<Tab> _tabs = const [
     Tab(text: "All chats"),
@@ -30,14 +31,18 @@ class _RecentChatsPageState extends State<RecentChatsPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+
     WebSocketService().startListening();
     WebRtcManager().connectToSignalingServer();
 
-    Hive.openBox<Message>('messages').then((box) {
-      box.watch().listen((event) {
+    SharedPreferences.getInstance().then((prefs) {
+      currentUser = prefs.getString("username") ?? "";
+      Hive.openBox<Message>('messages').then((box) {
+        box.watch().listen((event) {
+          loadMessages();
+        });
         loadMessages();
       });
-      loadMessages();
     });
   }
 
@@ -47,19 +52,17 @@ class _RecentChatsPageState extends State<RecentChatsPage>
     all.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
     final Map<String, Message> latest = {};
-    final Map<String, int> tempUnread = {};
 
     for (var msg in all) {
-      if (!latest.containsKey(msg.sender)) {
-        latest[msg.sender] = msg;
+      final otherUser = msg.sender == currentUser ? msg.receiver : msg.sender;
+      if (!latest.containsKey(otherUser)) {
+        latest[otherUser] = msg;
       }
-      tempUnread[msg.sender] = (tempUnread[msg.sender] ?? 0) + 1;
     }
 
     setState(() {
       allMessages = all;
       latestMessages = latest;
-      unreadCounts = tempUnread;
     });
   }
 
@@ -127,10 +130,13 @@ class _RecentChatsPageState extends State<RecentChatsPage>
       itemCount: sortedEntries.length,
       itemBuilder: (context, index) {
         final entry = sortedEntries[index];
-        return MessagePreview(
-          name: entry.key,
-          message: entry.value.content,
-          unreadCount: unreadCounts[entry.key] ?? 0,
+        final otherUser = entry.key;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.pushNamed(context, '/chat', arguments: otherUser);
+          },
+          child: MessagePreview(name: otherUser, message: entry.value.content),
         );
       },
     );

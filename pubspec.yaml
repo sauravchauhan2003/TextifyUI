@@ -43,6 +43,7 @@ dependencies:
   hive_flutter: ^1.1.0
   flutter_webrtc: ^0.14.1
   web_socket_channel: ^2.4.0
+  intl:
 
 dev_dependencies:
   flutter_test:

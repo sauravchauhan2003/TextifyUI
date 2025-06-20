@@ -36,7 +36,7 @@ class Message extends HiveObject {
   Map<String, dynamic> toJson() => {
     'sender': sender,
     'receiver': receiver,
-    'content': content,
-    'timestamp': timestamp.toIso8601String(),
+    'message': content,
+    'localDateTime': timestamp.toIso8601String(),
   };
 }

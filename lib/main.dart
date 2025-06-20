@@ -3,7 +3,6 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:textify/Logic/Routes.dart';
 import 'package:textify/Logic/message.dart';
-import 'package:textify/pages/ChatScreen.dart';
 import 'package:textify/pages/ForgotPassword.dart';
 import 'package:textify/pages/LoadingScreen.dart';
 import 'package:textify/pages/LoginScreen.dart';
@@ -30,7 +29,6 @@ class MyApp extends StatelessWidget {
       routes: {
         Routes.signup: (context) => Signup(),
         Routes.login: (context) => Loginscreen(),
-        Routes.ChatScreen: (context) => ChatScreen(),
         Routes.Mainpage: (context) => RecentChatsPage(),
         Routes.Forgotpassword: (context) => ForgotPasswordPage(),
         Routes.LoadingScreen: (context) => LoadingScreen(),

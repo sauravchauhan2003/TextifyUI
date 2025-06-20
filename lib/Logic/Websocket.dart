@@ -1,3 +1,4 @@
+// File: WebSocketService.dart
 import 'package:textify/Logic/Constants.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,7 +15,6 @@ class WebSocketService {
   WebSocketService._internal();
 
   IOWebSocketChannel? _channel;
-
   bool _isListening = false;
 
   Future<void> startListening() async {
@@ -29,7 +29,6 @@ class WebSocketService {
     }
 
     final uri = Uri.parse(Websocketurl);
-
     _channel = IOWebSocketChannel.connect(
       uri,
       headers: {'Authorization': 'Bearer $jwt'},
@@ -50,7 +49,7 @@ class WebSocketService {
           );
 
           final box = await Hive.openBox<Message>('messages');
-          box.add(message);
+          await box.add(message);
         }
       },
       onDone: () {
