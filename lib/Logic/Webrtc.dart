@@ -1,14 +1,27 @@
+// File: WebRtcManager.dart
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:textify/Logic/Constants.dart';
+import 'package:textify/pages/VideoCallScreen.dart';
+import 'package:textify/pages/VoiceCallScreen.dart';
 
 class WebRtcManager {
+  static final WebRtcManager _instance = WebRtcManager._internal();
+  factory WebRtcManager() => _instance;
+  WebRtcManager._internal();
+
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
   IOWebSocketChannel? _channel;
   bool _connected = false;
+  String? _remoteUser;
+
+  Function(String from, String callType)? onIncomingCall;
+  Function()? onCallEnded;
+  Function(MediaStream stream)? onRemoteStream;
 
   final Map<String, dynamic> _config = {
     'iceServers': [
@@ -16,17 +29,25 @@ class WebRtcManager {
     ],
   };
 
+  MediaStream? get localStream => _localStream;
+  bool get isConnected => _connected;
+
   Future<void> connectToSignalingServer() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final jwt = prefs.getString('jwt_token');
-    if (jwt == null) {
-      print('JWT not found');
+    if (_connected) {
+      print("Already connected to signaling server.");
       return;
     }
 
-    final uri = Uri.parse(
-      WebRtcWebsocketUrl,
-    ); // e.g. ws://localhost:8000/webrtc
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final jwt = prefs.getString('jwt_token');
+    if (jwt == null) {
+      print("JWT not found.");
+      return;
+    }
+
+    final uri = Uri.parse(WebRtcWebsocketUrl);
+    print("Connecting to signaling server with JWT: $jwt");
+
     _channel = IOWebSocketChannel.connect(
       uri,
       headers: {'Authorization': 'Bearer $jwt'},
@@ -34,29 +55,39 @@ class WebRtcManager {
 
     _channel!.stream.listen(
       (event) {
-        final data = jsonDecode(event);
-        _handleSignalingMessage(data);
+        print("Received signaling message: $event");
+        _handleSignalingMessage(jsonDecode(event));
       },
       onDone: () {
-        print('WebRTC signaling connection closed');
+        print("WebSocket connection closed");
         _connected = false;
       },
       onError: (error) {
-        print('WebRTC signaling error: $error');
+        print("WebSocket error: $error");
         _connected = false;
       },
     );
 
     _connected = true;
+    print("WebSocket connected: $_connected");
   }
 
   Future<void> startCall(String toUsername, String callType) async {
-    await _createPeerConnection();
+    if (!_connected) {
+      print("WebSocket is not connected. Cannot start call.");
+      return;
+    }
 
+    _remoteUser = toUsername;
+    await _createPeerConnection(callType == "video");
+    if (_peerConnection == null) {
+      print("PeerConnection is null");
+      return;
+    }
     RTCSessionDescription offer = await _peerConnection!.createOffer();
     await _peerConnection!.setLocalDescription(offer);
-
-    _sendMessage({
+    print("Created offer: ${offer.sdp}");
+    sendMessage({
       'type': 'offer',
       'from': await _getUsername(),
       'to': toUsername,
@@ -65,21 +96,80 @@ class WebRtcManager {
     });
   }
 
-  Future<void> _createPeerConnection() async {
+  Future<void> acceptCall(
+    String callType,
+    String from,
+    BuildContext context,
+  ) async {
+    if (!_connected) {
+      print("WebSocket is not connected. Cannot accept call.");
+      return;
+    }
+
+    await _createPeerConnection(callType == "video");
+    if (_peerConnection == null) {
+      print("PeerConnection is null");
+      return;
+    }
+    RTCSessionDescription answer = await _peerConnection!.createAnswer();
+    await _peerConnection!.setLocalDescription(answer);
+    print("Created answer: ${answer.sdp}");
+    sendMessage({
+      'type': 'answer',
+      'from': await _getUsername(),
+      'to': from,
+      'sdp': answer.sdp,
+      'callType': callType,
+    });
+
+    if (callType == "video") {
+      final renderer = RTCVideoRenderer();
+      await renderer.initialize();
+      onRemoteStream = (stream) {
+        renderer.srcObject = stream;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (_) => VideoCallScreen(
+                  localStream: _localStream!,
+                  remoteRenderer: renderer,
+                ),
+          ),
+        );
+      };
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) =>
+                  VoiceCallScreen(remoteUser: from, localStream: _localStream!),
+        ),
+      );
+    }
+  }
+
+  Future<void> _createPeerConnection(bool videoEnabled) async {
     _localStream = await navigator.mediaDevices.getUserMedia({
       'audio': true,
-      'video': true,
+      'video': videoEnabled,
     });
 
     _peerConnection = await createPeerConnection(_config);
-    _peerConnection!.addStream(_localStream!);
+    if (_peerConnection != null && localStream != null) {
+      for (var track in localStream!.getTracks()) {
+        _peerConnection!.addTrack(track, localStream!);
+      }
+    }
 
-    _peerConnection!.onIceCandidate = (candidate) {
-      if (candidate != null) {
-        _sendMessage({
+    _peerConnection!.onIceCandidate = (candidate) async {
+      if (candidate != null && _remoteUser != null) {
+        print("Sending ICE candidate to $_remoteUser: ${candidate.candidate}");
+        sendMessage({
           'type': 'candidate',
           'to': _remoteUser,
-          'from': _getUsername(),
+          'from': await _getUsername(),
           'candidate': {
             'candidate': candidate.candidate,
             'sdpMid': candidate.sdpMid,
@@ -90,49 +180,43 @@ class WebRtcManager {
     };
 
     _peerConnection!.onAddStream = (stream) {
-      print('Remote stream added');
+      print("Remote stream added");
+      onRemoteStream?.call(stream);
     };
   }
 
   Future<void> _handleSignalingMessage(dynamic message) async {
+    print("Handling signaling message: $message");
     switch (message['type']) {
       case 'offer':
-        await _createPeerConnection();
-        await _peerConnection!.setRemoteDescription(
-          RTCSessionDescription(message['sdp'], 'offer'),
-        );
-        RTCSessionDescription answer = await _peerConnection!.createAnswer();
-        await _peerConnection!.setLocalDescription(answer);
-        _sendMessage({
-          'type': 'answer',
-          'from': await _getUsername(),
-          'to': message['from'],
-          'sdp': answer.sdp,
-        });
+        _remoteUser = message['from'];
+        onIncomingCall?.call(_remoteUser!, message['callType']);
         break;
-
       case 'answer':
         await _peerConnection!.setRemoteDescription(
           RTCSessionDescription(message['sdp'], 'answer'),
         );
         break;
-
       case 'candidate':
-        final candidate = message['candidate'];
+        final c = message['candidate'];
         await _peerConnection!.addCandidate(
-          RTCIceCandidate(
-            candidate['candidate'],
-            candidate['sdpMid'],
-            candidate['sdpMLineIndex'],
-          ),
+          RTCIceCandidate(c['candidate'], c['sdpMid'], c['sdpMLineIndex']),
         );
+        break;
+      case 'end':
+        _peerConnection?.close();
+        onCallEnded?.call();
         break;
     }
   }
 
-  void _sendMessage(Map<String, dynamic> message) {
+  void sendMessage(Map<String, dynamic> message) {
     if (_connected && _channel != null) {
-      _channel!.sink.add(jsonEncode(message));
+      final encoded = jsonEncode(message);
+      print("Sending message: $encoded");
+      _channel!.sink.add(encoded);
+    } else {
+      print("WebSocket not connected, message not sent: $message");
     }
   }
 
@@ -142,12 +226,10 @@ class WebRtcManager {
   }
 
   void dispose() {
+    print("Disposing WebRTC Manager");
     _peerConnection?.close();
-    _peerConnection = null;
     _localStream?.dispose();
-    _localStream = null;
     _channel?.sink.close();
+    _connected = false;
   }
-
-  String? _remoteUser;
 }

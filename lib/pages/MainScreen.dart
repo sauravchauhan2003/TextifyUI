@@ -6,6 +6,7 @@ import 'package:textify/Logic/Websocket.dart';
 import 'package:textify/Widgets/MessagePreview.dart';
 import 'package:hive/hive.dart';
 import 'package:textify/Logic/message.dart';
+import 'package:textify/pages/IncomingCall.dart';
 
 class RecentChatsPage extends StatefulWidget {
   const RecentChatsPage({super.key});
@@ -34,6 +35,7 @@ class _RecentChatsPageState extends State<RecentChatsPage>
 
     WebSocketService().startListening();
     WebRtcManager().connectToSignalingServer();
+    WebRtcManager().onIncomingCall = _handleIncomingCall;
 
     SharedPreferences.getInstance().then((prefs) {
       currentUser = prefs.getString("username") ?? "";
@@ -46,13 +48,33 @@ class _RecentChatsPageState extends State<RecentChatsPage>
     });
   }
 
+  void _handleIncomingCall(String from, String callType) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => IncomingCall(
+              from: from,
+              callType: callType,
+              onAccept:
+                  () => WebRtcManager().acceptCall(callType, from, context),
+              onReject:
+                  () => WebRtcManager().sendMessage({
+                    'type': 'end',
+                    'from': from,
+                    'to': '', // or current user if needed
+                  }),
+            ),
+      ),
+    );
+  }
+
   Future<void> loadMessages() async {
     final box = await Hive.openBox<Message>('messages');
     final all = box.values.toList();
     all.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
     final Map<String, Message> latest = {};
-
     for (var msg in all) {
       final otherUser = msg.sender == currentUser ? msg.receiver : msg.sender;
       if (!latest.containsKey(otherUser)) {

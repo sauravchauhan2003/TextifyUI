@@ -1,9 +1,15 @@
+// File: ChatScreen.dart
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:textify/Logic/Webrtc.dart';
 import 'package:textify/Logic/message.dart';
 import 'package:textify/widgets/MessageBubble.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:textify/Logic/Websocket.dart';
+import 'package:textify/pages/VideoCallScreen.dart';
+import 'package:textify/pages/VoiceCallScreen.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ChatScreen extends StatefulWidget {
   final String otherUser;
@@ -50,14 +56,19 @@ class _ChatScreenState extends State<ChatScreen> {
     all.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     if (!mounted) return;
-    setState(() {
-      messages = all;
-    });
+    setState(() => messages = all);
 
     box.watch().listen((event) {
       if (!mounted) return;
       _loadMessages();
     });
+  }
+
+  Future<bool> _ensurePermissions() async {
+    final statuses = await [Permission.microphone, Permission.camera].request();
+
+    return statuses[Permission.microphone]!.isGranted &&
+        statuses[Permission.camera]!.isGranted;
   }
 
   void _sendMessage() async {
@@ -72,16 +83,66 @@ class _ChatScreenState extends State<ChatScreen> {
     );
 
     WebSocketService().sendMessage(message);
-
     final box = await Hive.openBox<Message>('messages');
     await box.add(message);
-
     _controller.clear();
   }
 
-  void _startVoiceCall() {}
+  void _startVoiceCall() async {
+    if (await _ensurePermissions()) {
+      final webrtc = WebRtcManager(); // Reuse the instance
+      await webrtc.startCall(widget.otherUser, "voice");
 
-  void _startVideoCall() {}
+      final localStream = webrtc.localStream;
+      if (localStream == null) {
+        print("❌ Local stream is null, cannot start voice call.");
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) => VoiceCallScreen(
+                remoteUser: widget.otherUser,
+                localStream: localStream,
+              ),
+        ),
+      );
+    } else {
+      print("❌ Permissions not granted");
+    }
+  }
+
+  void _startVideoCall() async {
+    final renderer = RTCVideoRenderer();
+    await renderer.initialize();
+
+    final webrtc = WebRtcManager(); // Reuse the instance
+
+    webrtc.onRemoteStream = (stream) {
+      renderer.srcObject = stream;
+
+      final localStream = webrtc.localStream;
+      if (localStream == null) {
+        print("❌ Local stream is null, cannot start video call.");
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) => VideoCallScreen(
+                localStream: localStream,
+                remoteRenderer: renderer,
+              ),
+        ),
+      );
+    };
+
+    await webrtc.startCall(widget.otherUser, "video");
+  }
 
   @override
   Widget build(BuildContext context) {
